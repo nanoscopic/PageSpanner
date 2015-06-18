@@ -5,17 +5,18 @@ PageSpanner.prototype = {
   bid: 0,
   pagenum: 0,
   curpage: 0,
-  initialize: function( tables ) {
+  initialize: function( options ) {
     this.pagenum = 0;
     this.curpage = 0;
     this.add_page();
-    this.tables = tables;
+    this.page_tpl_func = options.page_tpl_generator || 0;
+    this.tables = options.tables;
     this.tocBuilder = new TocBuilder( this );
   },
   add_page: function() {
     if( this.curpage ) this.curpage.finalize();
     this.pagenum++;
-    this.curpage = new Page( this.pagenum );
+    this.curpage = new Page( this.pagenum, this.page_tpl_func );
   },
   add_items: function( r ) {
     for( var i=0;i<r.length;i++ ) {
@@ -195,6 +196,9 @@ PageSpanner.prototype = {
       if( inf.options ) {
         var addops = inf.options;
         var height = addops.height;
+        var width = addops.width;
+        div.style.width = width + 'px';
+        div.style.height = height + 'px';
         var remain = this.curpage.remaining_height();
         if( remain < 0 || height > remain ) {
           _del( div );
@@ -465,15 +469,23 @@ Page.prototype = {
   div: 0,
   pagenum: 0,
   baseHeight: 0,
-  initialize: function( pagenum ) {
+  initialize: function( pagenum, page_tpl_func ) {
     //var main = _getel('main');
     this.pagenum = pagenum;
+    if( pagenum > 20 ) console.break();
+    this.tpl_func = page_tpl_func;
     var div = _newdiv('page');
     _append( document.body, div );
-    this.baseHeight = div.offsetHeight;
-    div.style.height = '500px';
-    div.style.minHeight = 0;
-    this.div = div;
+    
+    if( page_tpl_func ) {
+      this.div = page_tpl_func( div );
+    }
+    else this.div = div;
+    
+    this.baseHeight = this.div.offsetHeight;
+    this.div.style.height = '500px';
+    this.div.style.minHeight = 0;
+    this.outer = div;
   },
   is_full: function() {
     var h = this.height();
@@ -490,6 +502,6 @@ Page.prototype = {
     return _append( this.div, x );
   },
   finalize: function() {
-    this.div.className = 'page pageDone';
+    this.outer.className = 'page pageDone';
   }
 };
