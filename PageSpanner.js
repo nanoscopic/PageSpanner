@@ -3,6 +3,7 @@ PageSpanner.prototype = {
   curpage: 0,
   table: 0,
   bid: 0,
+  delay_id: 0,
   pagenum: 0,
   curpage: 0,
   initialize: function( options ) {
@@ -18,58 +19,103 @@ PageSpanner.prototype = {
     this.pagenum++;
     this.curpage = new Page( this.pagenum, this.page_tpl_func );
   },
+  add_item: function( item, delay ) {
+    var n = item[0];
+    var v = item[1];
+    
+    var html = '';
+    var delayed = 0;
+    
+    if( n == 0 ) {
+      if( delay ) html = v;
+      else this.add_html( v );
+    }
+    if( n == 1 ) { // named
+      var type = v[0];
+      if( type == 'table' ) {
+        var tname = v[1];
+        var def = this.tables[ tname ];
+        if(!def) console.log("Cannot find table named " + tname );
+        else {
+          if( delay ) {
+            var newid = 'delay' + this.delay_id++;
+            delayed = [ 1, [ 'tableid', newid, tname ] ];
+            html = "<div id='" + newid + "'></div>";
+          }
+          else this.add_table( def );
+        }
+      }
+      if( type == 'tableid' ) {
+        var insertid = v[1];
+        var tname = v[2];
+        var def = this.tables[ tname ];
+        if(!def) console.log("Cannot find table named " + tname );
+        else {
+          if(def) this.add_table_in_id( insertid, def );
+        }
+      }
+      if( type == 'chart' ) {
+        var cname = v[1];
+        var tb = this.tables[ cname ];
+        if(!tb) console.log("Cannot find table named " + cname );
+        else {
+          if( delay ) {
+            var newid = 'delay' + this.delay_id++;
+            delayed = [ 1, [ 'chartid', newid, cname ] ];
+            html = "<div id='" + newid + "'></div>";
+          }l
+          else {
+            var xys = this.findxys( tb );
+            if( xys ) this.add_graph( xys, tb['chart'] || 0, cname, 0 );
+          }
+        }
+      }
+      if( type == 'chartid' ) {
+        var insertid = v[1];
+        var cname = v[2];
+        var tb = this.tables[ cname ];
+        if(tb) {
+          var xys = this.findxys( tb );
+          if( xys ) this.add_graph( xys, tb['chart'] || 0, cname, insertid );
+        }
+        if(!tb) console.log("Cannot find table named " + cname );
+      }
+      if( type == 'index' ) {
+        var level = v[1];
+        var name = v[2];
+        var tpl = v[3];
+        this.tocBuilder.addItem( this.pagenum, level, name, tpl );
+      }
+      if( type == 'toc' ) {
+        this.tocBuilder.addToc();
+      }
+    }
+    return {html:html,later:delayed};
+  },
   add_items: function( r ) {
     for( var i=0;i<r.length;i++ ) {
       var part = r[ i ];
       var n = part[0];
       var v = part[1];
-      if( n == 0 ) {
-        this.add_html( v );
-      }
-      if( n == 1 ) { // named
-        var type = v[0];
-        if( type == 'table' ) {
-          var tname = v[1];
-          var def = this.tables[ tname ];
-          if(def) this.add_table( def );
-          if(!def) console.log("Cannot find table named " + tname );
+      if( n == 2 ) {
+        var len = v.length;
+        var html = '';
+        var delayed = [];
+        for( var j=0;j<len;j++ ) {
+          var item = v[ j ];
+          var res = this.add_item( item, 1 );
+          if( res.later ) delayed.push( res.later );
+          if( res.html ) html += res.html;
         }
-        if( type == 'tableid' ) {
-          var insertid = v[1];
-          var tname = v[2];
-          var def = this.tables[ tname ];
-          if(def) this.add_table_in_id( insertid, def );
-          if(!def) console.log("Cannot find table named " + tname );
-        }
-        if( type == 'chart' ) {
-          var cname = v[1];
-          var tb = this.tables[ cname ];
-          if(tb) {
-            var xys = this.findxys( tb );
-            if( xys ) this.add_graph( xys, tb['chart'] || 0, cname, 0 );
+        this.add_html( html );
+        if( delayed.length ) {
+          for( var j=0;j<delayed.length;j++ ) {
+            var item = delayed[ j ];
+            this.add_item( item, 0 );
           }
-          if(!tb) console.log("Cannot find table named " + cname );
-        }
-        if( type == 'chartid' ) {
-          var insertid = v[1];
-          var cname = v[2];
-          var tb = this.tables[ cname ];
-          if(tb) {
-            var xys = this.findxys( tb );
-            if( xys ) this.add_graph( xys, tb['chart'] || 0, cname, insertid );
-          }
-          if(!tb) console.log("Cannot find table named " + cname );
-        }
-        if( type == 'index' ) {
-          var level = v[1];
-          var name = v[2];
-          var tpl = v[3];
-          this.tocBuilder.addItem( this.pagenum, level, name, tpl );
-        }
-        if( type == 'toc' ) {
-          this.tocBuilder.addToc();
         }
       }
+      else this.add_item( part, 0 );
     }
     this.add_page();
   },
