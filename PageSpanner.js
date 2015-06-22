@@ -19,7 +19,7 @@ PageSpanner.prototype = {
     this.pagenum++;
     this.curpage = new Page( this.pagenum, this.page_tpl_func );
   },
-  add_item: function( item, delay ) {
+  add_item: function( item, delay, throwok ) {
     var n = item[0];
     var v = item[1];
     
@@ -28,7 +28,7 @@ PageSpanner.prototype = {
     
     if( n == 0 ) {
       if( delay ) html = v;
-      else this.add_html( v );
+      else this.add_html( v, throwok );
     }
     if( n == 1 ) { // named
       var type = v[0];
@@ -51,7 +51,7 @@ PageSpanner.prototype = {
         var def = this.tables[ tname ];
         if(!def) console.log("Cannot find table named " + tname );
         else {
-          if(def) this.add_table_in_id( insertid, def );
+          if(def) this.add_table_in_id( insertid, def, throwok );
         }
       }
       if( type == 'chart' ) {
@@ -63,7 +63,7 @@ PageSpanner.prototype = {
             var newid = 'delay' + this.delay_id++;
             delayed = [ 1, [ 'chartid', newid, cname ] ];
             html = "<div id='" + newid + "'></div>";
-          }l
+          }
           else {
             var xys = this.findxys( tb );
             if( xys ) this.add_graph( xys, tb['chart'] || 0, cname, 0 );
@@ -76,7 +76,7 @@ PageSpanner.prototype = {
         var tb = this.tables[ cname ];
         if(tb) {
           var xys = this.findxys( tb );
-          if( xys ) this.add_graph( xys, tb['chart'] || 0, cname, insertid );
+          if( xys ) this.add_graph( xys, tb['chart'] || 0, cname, insertid, throwok );
         }
         if(!tb) console.log("Cannot find table named " + cname );
       }
@@ -98,20 +98,37 @@ PageSpanner.prototype = {
       var n = part[0];
       var v = part[1];
       if( n == 2 ) {
-        var len = v.length;
-        var html = '';
-        var delayed = [];
-        for( var j=0;j<len;j++ ) {
-          var item = v[ j ];
-          var res = this.add_item( item, 1 );
-          if( res.later ) delayed.push( res.later );
-          if( res.html ) html += res.html;
-        }
-        this.add_html( html );
-        if( delayed.length ) {
-          for( var j=0;j<delayed.length;j++ ) {
-            var item = delayed[ j ];
-            this.add_item( item, 0 );
+        var repeat = 1;
+        while( repeat ) {
+          repeat = 0;
+          this.node_log = [];
+          var node1 = 0;
+          try {
+            var len = v.length;
+            var html = '';
+            var delayed = [];
+            for( var j=0;j<len;j++ ) {
+              var item = v[ j ];
+              var res = this.add_item( item, 1, 1 ); // 1st 1 means do_delay, 2nd 1 means throwok
+              if( res.later ) delayed.push( res.later );
+              if( res.html ) html += res.html;
+            }
+            node1 = this.add_html( html, 1 ); // 1 means throw ok
+            if( delayed.length ) {
+              for( var j=0;j<delayed.length;j++ ) {
+                var item = delayed[ j ];
+                this.add_item( item, 0, 1 );
+              }
+            }
+          }
+          catch( err ) {
+            if( err == 'PageFull' ) {
+              if( node1.parentNode) _del( node1 );
+              this.add_page();
+              repeat = 1;
+              continue;
+            }
+            else throw err;
           }
         }
       }
@@ -137,17 +154,23 @@ PageSpanner.prototype = {
       }
     }
   },
-  add_html: function( html ) {
+  add_html: function( html, throwok ) {
     var div = _newdiv();
     div.innerHTML = html;
+    var n1 = 0;
     while( div.firstChild ) {
       var child = div.firstChild;
+      if( !n1 && child.id ) { n1 = child; }
       this.curpage.append( child );
       if( this.curpage.is_full() ) {
+        if( throwok ) {
+          throw "PageFull";
+        }
         this.add_page();
         this.curpage.append( child );
       }
     }
+    return n1;
   },
   /*add_table: function( thtml ) {
     var div = _newdiv();
@@ -178,9 +201,9 @@ PageSpanner.prototype = {
       _append( this.curtbody, tr );
     }
   },
-  add_table_in_id: function( insertid, thash ) {
+  add_table_in_id: function( insertid, thash, throwok ) {
     this.curtbody = this.add_empty_table( insertid );
-    var tob = new TableSys( thash, this );
+    var tob = new TableSys( thash, this, throwok );
     tob.render( this );
   },
   add_table: function( thash ) {
@@ -188,11 +211,11 @@ PageSpanner.prototype = {
     var tob = new TableSys( thash, this );
     tob.render( this );
   },
-  add_graph: function( xys, inf, tbname, insertid ) {
+  add_graph: function( xys, inf, tbname, insertid, throwok ) {
     var div = _newdiv();
     var sp;
     if( insertid ) {
-      sp = _getel(insertid);
+      sp = _getel( insertid );
       _append( sp, div );
     }
     else {
@@ -248,6 +271,9 @@ PageSpanner.prototype = {
         var remain = this.curpage.remaining_height();
         if( remain < 0 || height > remain ) {
           _del( div );
+          if( throwok ) {
+            throw "PageFull";
+          }
           this.add_page();
           if( !insertid ) this.add_graph( xys, inf, tbname, insertid );
           return;
@@ -302,6 +328,7 @@ PageSpanner.prototype = {
     tb.table.cellPadding = 4;
     tb.table.cellSpacing = 0;
     tb.table.border = '1';
+    tb.table.className = insertid + "x"; // debugging; Todo: remove
     var tbody = tb.tbody;
     //_append( this.curpage, tb.table );
     if( insertid ) {
@@ -378,13 +405,15 @@ TableSys.prototype = {
   def: 0,
   spanner: 0,
   levelStack: 0,
-  initialize: function( def, spanner ) {
+  throwok: 0,
+  initialize: function( def, spanner, throwok ) {
     this.def = def;
     this.spanner = spanner;
     this.levelStack = [];
+    this.throwok = throwok || 0;
   },
   render: function() {
-    var root = new TableLevel( this.def, this.spanner, this, 0 );
+    var root = new TableLevel( this.def, this.spanner, this, 0, this.throwok );
     this.pushLevel( root );
     root.render();
     this.popLevel();
@@ -413,12 +442,14 @@ TableLevel.prototype = {
   sys: 0,
   levelId: 0,
   shownHeaders: 0,
-  initialize: function( def, spanner, sys, levelId ) {
+  throwok: 0,
+  initialize: function( def, spanner, sys, levelId, throwok ) {
     this.def = def;
     this.spanner = spanner;
     this.sys = sys;
     this.levelId = levelId;
     this.shownHeaders = [];
+    this.throwok = throwok;
   },
   render: function() {
     if( this.def.header ) this.renderHeaders( this.def.header );
@@ -432,6 +463,7 @@ TableLevel.prototype = {
       tr.innerHTML = header;
       var self = this;
       this.sys.addTr( tr, function() {
+          if( self.throwok ) throw "PageFull";
           var showLevel;
           if( self.levelId > 0 ) {
             var maxShow = self.levelId - 1;
@@ -484,7 +516,10 @@ TableLevel.prototype = {
           }*/
       } );
       
-      if( nofit ) break;
+      if( nofit ) {
+        if( this.throwok ) throw "PageFull";
+        break;
+      }
     }
     
     if( nofit ) {
@@ -501,7 +536,7 @@ TableLevel.prototype = {
       for( var j in sets ) {
         var set = sets[j];
         if( group.use_new_table && j > 0 ) this.sys.newTb();
-        var level = new TableLevel( set, this.spanner, this.sys, this.levelId + 1 );
+        var level = new TableLevel( set, this.spanner, this.sys, this.levelId + 1, this.throwok );
         this.sys.pushLevel( level );
         level.render();
         this.sys.popLevel();
