@@ -269,7 +269,7 @@ PageSpanner.prototype = {
         div.style.width = width + 'px';
         div.style.height = height + 'px';
         var remain = this.curpage.remaining_height();
-        if( remain < 0 || height > remain ) {
+        if( !insertid && ( remain < 0 || height > remain ) ) {
           _del( div );
           if( throwok ) {
             throw "PageFull";
@@ -553,7 +553,7 @@ Page.prototype = {
   initialize: function( pagenum, page_tpl_func ) {
     //var main = _getel('main');
     this.pagenum = pagenum;
-    if( pagenum > 20 ) console.break();
+    if( pagenum > 50 ) console.break();
     this.tpl_func = page_tpl_func;
     var div = _newdiv('page');
     _append( document.body, div );
@@ -564,7 +564,7 @@ Page.prototype = {
     else this.div = div;
     
     this.baseHeight = this.div.offsetHeight;
-    this.div.style.height = '500px';
+    this.div.style.height = 0;
     this.div.style.minHeight = 0;
     this.outer = div;
   },
