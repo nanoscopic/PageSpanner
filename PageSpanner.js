@@ -84,7 +84,8 @@ PageSpanner.prototype = {
         var level = v[1];
         var name = v[2];
         var tpl = v[3];
-        this.tocBuilder.addItem( this.pagenum, level, name, tpl );
+        var html1 = this.tocBuilder.addItem( this.pagenum, level, name, tpl, delay );
+        if( delay ) html = html1;
       }
       if( type == 'toc' ) {
         this.tocBuilder.addToc();
@@ -113,7 +114,9 @@ PageSpanner.prototype = {
               if( res.later ) delayed.push( res.later );
               if( res.html ) html += res.html;
             }
-            node1 = this.add_html( html, 1 ); // 1 means throw ok
+            var r1 = this.add_html( html, 2 ); // 1 means throw ok
+            node1 = r1[0];
+            if( r1[1] ) throw 'PageFull';
             if( delayed.length ) {
               for( var j=0;j<delayed.length;j++ ) {
                 var item = delayed[ j ];
@@ -163,13 +166,17 @@ PageSpanner.prototype = {
       if( !n1 && child.id ) { n1 = child; }
       this.curpage.append( child );
       if( this.curpage.is_full() ) {
-        if( throwok ) {
+        if( throwok == 1 ) {
           throw "PageFull";
+        }
+        if( throwok == 2 ) {
+          return [ n1, 1 ];
         }
         this.add_page();
         this.curpage.append( child );
       }
     }
+    if( throwok == 2 ) { return [ n1, 0 ]; }
     return n1;
   },
   /*add_table: function( thtml ) {
@@ -194,11 +201,11 @@ PageSpanner.prototype = {
   addTr: function( tr, callback ) {
     _append( this.curtbody, tr );
     if( this.curpage.is_full() ) {
-      //tbody.removeChild( tr ); // in theory we can skip this
+      if( tr.parentNode ) tr.parentNode.removeChild( tr ); // in theory we can skip this
       this.add_page();
       this.curtbody = this.add_empty_table();
       callback();
-      _append( this.curtbody, tr );
+      //_append( this.curtbody, tr );
     }
   },
   add_table_in_id: function( insertid, thash, throwok ) {
@@ -266,10 +273,9 @@ PageSpanner.prototype = {
         var addops = inf.options;
         var height = addops.height;
         var width = addops.width;
-        div.style.width = width + 'px';
-        div.style.height = height + 'px';
+        
         var remain = this.curpage.remaining_height();
-        if( !insertid && ( remain < 0 || height > remain ) ) {
+        if( ( remain < 0 || height > remain ) ) {
           _del( div );
           if( throwok ) {
             throw "PageFull";
@@ -278,6 +284,8 @@ PageSpanner.prototype = {
           if( !insertid ) this.add_graph( xys, inf, tbname, insertid );
           return;
         }
+        div.style.width = width + 'px';
+        div.style.height = height + 'px';
         
         if( addops.labelInterpolationFnc ) {
           var lif;
@@ -355,9 +363,12 @@ TocBuilder.prototype = {
     this.items = [];
     this.cascade = new DomCascade();
   },
-  addItem: function( pagenum, level, text, html ) {
+  addItem: function( pagenum, level, text, html, delay ) {
     var id = ++this.id;
-    this.pageSpanner.add_html( "<a name='toc" + id + "'>" + html + "</a>" );
+    //this.pageSpanner.add_html( "<a name='toc" + id + "'>" + html + "</a>" );
+    var html1 = "<a name='toc" + id + "'>" + html + "</a>";
+    if( delay ) return html1;
+    else this.pageSpanner.add_html( html1 );
     this.items.push( { level: level, text: text, id: id, pagenum: pagenum } );
   },
   addToc: function() {
@@ -376,6 +387,7 @@ TocBuilder.prototype = {
         name: 'tr',
         sub: [
           { name: 'td',
+            ref: 'td',
             sub: {
               name: "a",
               attr: {
@@ -397,6 +409,10 @@ TocBuilder.prototype = {
       } );
       
       _append( tb.tbody, res.node );
+      
+      if( level == 2 ) {
+        res.refs.td.style.paddingLeft = '50px';
+      }
     }
   }
 };
@@ -487,6 +503,7 @@ TableLevel.prototype = {
     var nofit = 0;
     
     var heads = [];
+    var dokill = 1;
     for( var i in headers ) {
       var header = headers[ i ];
       var tr = _newel('tr');
@@ -520,11 +537,31 @@ TableLevel.prototype = {
         if( this.throwok ) throw "PageFull";
         break;
       }
+      else {
+        if( self.levelId > 0 ) {
+          var maxShow = self.levelId - 1;
+          for( var showLevel = 0; showLevel <= maxShow; showLevel++ ) {
+            var above = self.sys.getLevel( showLevel );
+            above.shownHeaders = [];
+          }
+        }
+      }
     }
     
     if( nofit ) {
       for( var i=0;i<heads.length;i++ ) {
-        _del( heads[i] );
+        var head = heads[i];
+        if( head.parentNode ) _del( head );
+      }
+      if( self.levelId > 0 ) {
+        var maxShow = self.levelId - 1;
+        for( var showLevel = 0; showLevel <= maxShow; showLevel++ ) {
+          var above = self.sys.getLevel( showLevel );
+          if( above.def.header ) {
+            above.killHeaders();
+            above.renderHeaders( above.def.header );
+          }
+        }
       }
       this.renderHeaders( headers );
     }
