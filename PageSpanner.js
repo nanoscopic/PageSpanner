@@ -201,9 +201,16 @@ PageSpanner.prototype = {
   addTr: function( tr, callback ) {
     _append( this.curtbody, tr );
     if( this.curpage.is_full() ) {
-      if( tr.parentNode ) tr.parentNode.removeChild( tr ); // in theory we can skip this
-      this.add_page();
-      this.curtbody = this.add_empty_table();
+      if( tr.parentNode ) {
+        var deltable = 0;
+        if( tr == tr.parentNode.firstChild ) deltable = tr.parentNode;
+        tr.parentNode.removeChild( tr );
+        if( deltable ) _del( deltable );
+      }
+      if( !this.inserted_by_id ) {
+        this.add_page();
+        this.curtbody = this.add_empty_table();
+      }
       callback();
       //_append( this.curtbody, tr );
     }
@@ -332,11 +339,12 @@ PageSpanner.prototype = {
     return div;
   },
   add_empty_table: function( insertid ) {
+    this.inserted_by_id = insertid || 0;
     var tb = _newtable();
-    tb.table.cellPadding = 4;
+    tb.table.cellPadding = 0;
     tb.table.cellSpacing = 0;
-    tb.table.border = '1';
-    tb.table.className = insertid + "x"; // debugging; Todo: remove
+    //tb.table.border = '1';
+    tb.table.className = 'mixed';
     var tbody = tb.tbody;
     //_append( this.curpage, tb.table );
     if( insertid ) {
@@ -473,6 +481,7 @@ TableLevel.prototype = {
     if( this.def.groups ) this.renderGroups( this.def.groups );
   },
   renderDetail: function( headers ) {
+    var dokill = 1;
     for( var i in headers ) {
       var header = headers[ i ];
       var tr = _newel('tr');
@@ -485,18 +494,29 @@ TableLevel.prototype = {
             var maxShow = self.levelId - 1;
             for( var showLevel = 0; showLevel <= maxShow; showLevel++ ) {
               var above = self.sys.getLevel( showLevel );
-              if( above.def.header ) above.renderHeaders( above.def.header );
+              if( above.def.header ) {
+                above.killHeaders();
+                above.renderHeaders( above.def.header );
+              }
             }
           }
-          if( self.def.header ) self.renderHeaders( self.def.header );
+          if( self.def.header ) {
+            if( dokill ) self.killHeaders();
+            self.renderHeaders( self.def.header );
+          }
+          self.sys.addTr( tr );
       } );
+      dokill = 0;
     }
   },
   killHeaders: function() {
+    var deltable = 0;
     for( var i=0;i<this.shownHeaders.length;i++ ) {
       var h = this.shownHeaders[ i ];
+      if( h == h.parentNode.firstChild ) deltable = h.parentNode;
       h.parentNode.removeChild( h );
     }
+    if( deltable ) _del( deltable );
     this.shownHeaders = [];
   },
   renderHeaders: function( headers ) {
