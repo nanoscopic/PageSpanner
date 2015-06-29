@@ -244,6 +244,7 @@ PageSpanner.prototype = {
     var ref = '.ct-chart#bid' + this.bid;
     var xs = [];
     var ys = [];
+    var morea = [];
     var y1 = [], y2 = [];
     var multiy = 0;
     for( var xyi in xys ) {
@@ -259,6 +260,10 @@ PageSpanner.prototype = {
         y2.push( y[1] );
         multiy = 1;
       }
+      
+      var more = {};
+      if( xy.c ) more.c = xy.c;
+      morea.push( more );
     }
     var series = [ ys ];
     
@@ -315,7 +320,8 @@ PageSpanner.prototype = {
     if( type == 'bar' ) {
       chart = new Chartist.Bar( ref, {
           labels: xs,
-          series: series
+          series: series,
+          more: morea
       }, ops );
     }
     if( type == 'pie' ) {
@@ -325,7 +331,8 @@ PageSpanner.prototype = {
       }
       chart = new Chartist.Pie( ref, {
           //labels: xs,
-          series: series
+          series: series,
+          more: morea
       }, ops );
     }
     if( inf ) {
@@ -592,7 +599,9 @@ TableLevel.prototype = {
       var sets = group.sets;
       for( var j in sets ) {
         var set = sets[j];
-        if( group.use_new_table && j > 0 ) this.sys.newTb();
+        if( group.use_new_table && j > 0 ) {
+          this.sys.newTb();
+        }
         var level = new TableLevel( set, this.spanner, this.sys, this.levelId + 1, this.throwok );
         this.sys.pushLevel( level );
         level.render();
