@@ -6,18 +6,20 @@ PageSpanner.prototype = {
   delay_id: 0,
   pagenum: 0,
   curpage: 0,
-  initialize: function( options ) {
+  config: 0,
+  initialize: function( options, config ) {
     this.pagenum = 0;
     this.curpage = 0;
     this.add_page();
     this.page_tpl_func = options.page_tpl_generator || 0;
     this.tables = options.tables;
+    this.config = config;
     this.tocBuilder = new TocBuilder( this );
   },
   add_page: function() {
     if( this.curpage ) this.curpage.finalize();
     this.pagenum++;
-    this.curpage = new Page( this.pagenum, this.page_tpl_func );
+    this.curpage = new Page( this.pagenum, this.page_tpl_func, this.config );
   },
   add_item: function( item, delay, throwok ) {
     var n = item[0];
@@ -93,7 +95,7 @@ PageSpanner.prototype = {
     }
     return {html:html,later:delayed};
   },
-  add_items: function( r ) {
+  add_items: function( r, last_page ) {
     for( var i=0;i<r.length;i++ ) {
       var part = r[ i ];
       var n = part[0];
@@ -137,7 +139,7 @@ PageSpanner.prototype = {
       }
       else this.add_item( part, 0 );
     }
-    this.add_page();
+    if( !last_page ) this.add_page();
   },
   fillToc: function() {
     this.tocBuilder.renderToc();
@@ -393,7 +395,25 @@ TocBuilder.prototype = {
     var toc = _getel('toc');
     
     var tb = _newtable('table');
+    tb.table.className = 'toctable';
+    tb.table.cellSpacing = 0;
+    
     _append( toc, tb.table );
+    
+    var header = this.cascade.flow( {
+      name: 'tr',
+      sub: {
+        name: 'td',
+        attr: { colspan: 2 },
+        'class': 'tableheader',
+        sub: {
+          name: 'text',
+          text: 'Table of Contents'
+        }
+      }
+    } );
+    _append( tb.tbody, header.node );
+    
     for( var i=0;i<this.items.length;i++ ) {
       var item = this.items[ i ];
       var level = item.level;
@@ -403,6 +423,7 @@ TocBuilder.prototype = {
         sub: [
           { name: 'td',
             ref: 'td',
+            'class': 'tocitem',
             sub: {
               name: "a",
               attr: {
@@ -415,6 +436,7 @@ TocBuilder.prototype = {
             }
           },
           { name: 'td',
+            'class': 'tocnum',
             sub: {
               name: 'text',
               text: item.pagenum
@@ -616,16 +638,18 @@ Page.prototype = {
   div: 0,
   pagenum: 0,
   baseHeight: 0,
-  initialize: function( pagenum, page_tpl_func ) {
+  config: 0,
+  initialize: function( pagenum, page_tpl_func, config ) {
     //var main = _getel('main');
     this.pagenum = pagenum;
+    this.config = config;
     if( pagenum > 50 ) console.break();
     this.tpl_func = page_tpl_func;
     var div = _newdiv('page');
     _append( document.body, div );
     
     if( page_tpl_func ) {
-      this.div = page_tpl_func( div );
+      this.div = page_tpl_func( div, config );
     }
     else this.div = div;
     
