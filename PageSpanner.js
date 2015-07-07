@@ -17,9 +17,42 @@ PageSpanner.prototype = {
     this.tocBuilder = new TocBuilder( this );
   },
   add_page: function() {
+    this.prevpage = this.curpage;
     if( this.curpage ) this.curpage.finalize();
     this.pagenum++;
     this.curpage = new Page( this.pagenum, this.page_tpl_func, this.config );
+    if( this.prevpage ) this.shift_floating_headers();
+  },
+  shift_floating_headers: function() {
+    if( !this.prevpage ) return;
+    var div = this.prevpage.div;
+    //if( this.pagenum == 15 ) debugger;
+    var newdiv = this.curpage.div;
+    var children = div.children;
+    var i = children.length - 1;
+    for( var i = children.length - 1; i >= 0; i-- ) {
+      var child = children[ i ];
+      if( child.nodeName == 'A' ) {
+        var c1 = child.firstChild;
+        if( c1 && ( c1.nodeName == 'H1' || c1.nodeName == 'H2' ) ) {
+          if( newdiv.firstChild ) {
+            newdiv.insertBefore( child, newdiv.firstChild );
+          }
+          else {
+            newdiv.appendChild( child );
+          }
+        }
+      }
+      else if( child.nodeName == 'TABLE' ) {
+        if( !child.firstChild ) { _del( child ); continue; }
+        var c1 = child.firstChild;
+        if( c1.nodeName == 'TBODY' && !c1.firstChild ) { _del( child ); continue; }
+        break;
+      }
+      else {
+        break;
+      }
+    }
   },
   add_item: function( item, delay, throwok ) {
     var n = item[0];
@@ -58,27 +91,59 @@ PageSpanner.prototype = {
       }
       if( type == 'chart' ) {
         var cname = v[1];
+        var subname = '';
+        if( cname.match('-') ) {
+          var parts = cname.split('-');
+          cname = parts[0];
+          subname = parts[1];
+        }
+        
         var tb = this.tables[ cname ];
         if(!tb) console.log("Cannot find table named " + cname );
         else {
-          if( delay ) {
-            var newid = 'delay' + this.delay_id++;
-            delayed = [ 1, [ 'chartid', newid, cname ] ];
-            html = "<div id='" + newid + "'></div>";
-          }
-          else {
-            var xys = this.findxys( tb );
-            if( xys ) this.add_graph( xys, tb['chart'] || 0, cname, 0 );
+          var xys = this.findxys( tb );
+          if( xys ) {
+            if( delay ) {
+              var newid = 'delay' + this.delay_id++;
+              delayed = [ 1, [ 'chartid', newid, v[1] ] ];
+              html = "<div id='" + newid + "'></div>";
+            }
+            else {
+              if( tb['chart'] ) {
+                var charts = tb['chart'];
+                for( var i=0;i<charts.length;i++ ) {
+                  var chart = charts[i];
+                  if( chart.name == subname || ( !chart.name && subname=='' ) ) this.add_graph( xys, chart, cname, 0 );
+                }
+              }
+              else {
+                this.add_graph( xys, 0, cname, 0 );
+              }
+            }
           }
         }
       }
       if( type == 'chartid' ) {
         var insertid = v[1];
         var cname = v[2];
+        var subname = '';
+        if( cname.match('-') ) {
+          var parts = cname.split('-');
+          cname = parts[0];
+          subname = parts[1];
+        }
+        
         var tb = this.tables[ cname ];
         if(tb) {
           var xys = this.findxys( tb );
-          if( xys ) this.add_graph( xys, tb['chart'] || 0, cname, insertid, throwok );
+          if( xys ) {
+            var charts = tb['chart'];
+            for( var i=0;i<charts.length;i++ ) {
+              var chart = charts[i];
+              if( chart.name == subname || ( !chart.name && subname=='' ) ) this.add_graph( xys, chart, cname, insertid, throwok );
+            }
+            
+          }
         }
         if(!tb) console.log("Cannot find table named " + cname );
       }
@@ -228,6 +293,11 @@ PageSpanner.prototype = {
     tob.render( this );
   },
   add_graph: function( xys, inf, tbname, insertid, throwok ) {
+    var dataname = tbname;
+    if( inf.name ) {
+      tbname = name;
+    }
+    
     var div = _newdiv();
     var sp;
     if( insertid ) {
@@ -542,11 +612,14 @@ TableLevel.prototype = {
     var deltable = 0;
     for( var i=0;i<this.shownHeaders.length;i++ ) {
       var h = this.shownHeaders[ i ];
-      if( h == h.parentNode.firstChild ) deltable = h.parentNode;
-      h.parentNode.removeChild( h );
+      var parent = h.parentNode;
+      if( h == h.parentNode.firstChild ) deltable = parent;
+      parent.removeChild( h );
+      if( !parent.firstChild ) deltable = parent;
     }
     if( deltable ) _del( deltable );
     this.shownHeaders = [];
+    this.spanner.shift_floating_headers();
   },
   renderHeaders: function( headers ) {
     var nofit = 0;
