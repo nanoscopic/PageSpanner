@@ -160,6 +160,14 @@ PageSpanner.prototype = {
     }
     return {html:html,later:delayed};
   },
+  // This function adds items that were already arranged into an array of 'pages'
+  add_pages: function( pages ) {
+    for( var i=0;i<pages.length;i++ ) {
+      var page = pages[i];
+      var last_page = ( i == pages.length-1 ) ? 1 : 0;
+      this.add_items( page, last_page );
+    }
+  },
   add_items: function( r, last_page ) {
     for( var i=0;i<r.length;i++ ) {
       var part = r[ i ];
