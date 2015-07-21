@@ -140,7 +140,11 @@ PageSpanner.prototype = {
             var charts = tb['chart'];
             for( var i=0;i<charts.length;i++ ) {
               var chart = charts[i];
-              if( chart.name == subname || ( !chart.name && subname=='' ) ) this.add_graph( xys, chart, cname, insertid, throwok );
+              if( chart.name == subname || ( !chart.name && subname=='' ) ) {
+                var graph = this.add_graph( xys, chart, cname, insertid, throwok );
+                graph.style.marginLeft = 'auto';
+                graph.style.marginRight = 'auto';
+              }
             }
             
           }
@@ -293,12 +297,23 @@ PageSpanner.prototype = {
   add_table_in_id: function( insertid, thash, throwok ) {
     this.curtbody = this.add_empty_table( insertid );
     var tob = new TableSys( thash, this, throwok );
+    var tb1 = this.curtbody.parentNode;
     tob.render( this );
+    //tb1.style.marginLeft = 'auto';
+    //tb1.style.marginRight = 'auto';
+    tb1.style.width = '100%';
+    tb1.style.marginBottom = '10px';
+    tb1.style.marginTop = '-1px';
+    tb1.style.marginLeft = '-1px';
+    tb1.style.borderLeft = 0;
+    tb1.style.borderRight = 0;
   },
   add_table: function( thash ) {
     this.curtbody = this.add_empty_table();
     var tob = new TableSys( thash, this );
-    tob.render( this );
+    var tb1 = this.curtbody;
+    var table = tob.render( this );
+    return tb1.parentNode;
   },
   add_graph: function( xys, inf, tbname, insertid, throwok ) {
     var dataname = tbname;
@@ -376,8 +391,14 @@ PageSpanner.prototype = {
           if( !insertid ) this.add_graph( xys, inf, tbname, insertid );
           return;
         }
-        div.style.width = width + 'px';
-        div.style.height = height + 'px';
+        if( type == 'pie' ) {
+          div.style.width = '200px';//width + 'px';
+          div.style.height = '130px';//height + 'px';
+        }
+        else {
+          div.style.width = width + 'px';
+          div.style.height = height + 'px';
+        }
         
         if( addops.labelInterpolationFnc ) {
           var lif;
@@ -405,7 +426,7 @@ PageSpanner.prototype = {
       }, ops );
     }
     if( type == 'pie' ) {
-      series = series[0];
+      /*series = series[0];
       for( var i in series ) {
         series[i] = series[i] * 1;
       }
@@ -413,13 +434,18 @@ PageSpanner.prototype = {
           //labels: xs,
           series: series,
           more: morea
-      }, ops );
+      }, ops );*/
+      var img = _newel('img');
+      img.src = 'images/pie-15-' + tbname + '.png';
+      img.style.width = '200px';
+      img.style.height = '130px';
+      _append( div, img );
     }
     if( inf ) {
       if( inf.onDraw ) {
         var ofunc;
         eval( 'var ofunc = ' + inf.onDraw );
-        chart.on('draw', ofunc );
+        if(chart) chart.on('draw', ofunc );
       }
     }
     
