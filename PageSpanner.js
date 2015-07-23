@@ -3,6 +3,7 @@ PageSpanner.prototype = {
   curpage: 0,
   table: 0,
   bid: 0,
+  rid: 0,
   delay_id: 0,
   pagenum: 0,
   curpage: 0,
@@ -10,11 +11,12 @@ PageSpanner.prototype = {
   initialize: function( options, config ) {
     this.pagenum = 0;
     this.curpage = 0;
-    this.add_page();
     this.page_tpl_func = options.page_tpl_generator || 0;
     this.tables = options.tables;
     this.config = config;
+    this.add_page();
     this.tocBuilder = new TocBuilder( this );
+    this.rid = options.rid;
   },
   add_page: function() {
     this.prevpage = this.curpage;
@@ -301,12 +303,14 @@ PageSpanner.prototype = {
     tob.render( this );
     //tb1.style.marginLeft = 'auto';
     //tb1.style.marginRight = 'auto';
-    tb1.style.width = '100%';
-    tb1.style.marginBottom = '10px';
-    tb1.style.marginTop = '-1px';
-    tb1.style.marginLeft = '-1px';
-    tb1.style.borderLeft = 0;
-    tb1.style.borderRight = 0;
+    if( thash.islegend ) {
+      tb1.style.width = '100%';
+      tb1.style.marginBottom = '10px';
+      tb1.style.marginTop = '-1px';
+      tb1.style.marginLeft = '-1px';
+      tb1.style.borderLeft = 0;
+      tb1.style.borderRight = 0;
+    }
   },
   add_table: function( thash ) {
     this.curtbody = this.add_empty_table();
@@ -436,7 +440,7 @@ PageSpanner.prototype = {
           more: morea
       }, ops );*/
       var img = _newel('img');
-      img.src = 'images/pie-15-' + tbname + '.png';
+      img.src = 'data/images/pie-'+this.rid+'-' + tbname + '.png';
       img.style.width = '200px';
       img.style.height = '130px';
       _append( div, img );
@@ -756,7 +760,7 @@ Page.prototype = {
     _append( document.body, div );
     
     if( page_tpl_func ) {
-      this.div = page_tpl_func( div, config );
+      this.div = page_tpl_func( div, config, pagenum );
     }
     else this.div = div;
     
