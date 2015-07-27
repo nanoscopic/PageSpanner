@@ -63,6 +63,16 @@ PageSpanner.prototype = {
     var html = '';
     var delayed = 0;
     
+    if( this.noshow ) {
+      if( n == 1 ) {
+        var type = v[0];
+        if( type == 'endif' || type == 'else' ) {
+          this.noshow = 0;
+        }
+      }
+      return {html:''};
+    }
+    
     if( n == 0 ) {
       if( delay ) html = v;
       else this.add_html( v, throwok );
@@ -162,6 +172,18 @@ PageSpanner.prototype = {
       }
       if( type == 'toc' ) {
         this.tocBuilder.addToc();
+      }
+      if( type == 'if' ) {
+        var cond = v[1];
+        if( !cond ) {
+          this.noshow = 1;
+          return {html:''};
+        }
+      }
+      if( type == 'else' ) {
+        // because we reached here, we are currently showing stuff
+        this.noshow = 1;
+        return {html:''};
       }
     }
     return {html:html,later:delayed};
