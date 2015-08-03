@@ -8,12 +8,14 @@ PageSpanner.prototype = {
   pagenum: 0,
   curpage: 0,
   config: 0,
+  container: 0,
   initialize: function( options, config ) {
     this.pagenum = 0;
     this.curpage = 0;
     this.page_tpl_func = options.page_tpl_generator || 0;
     this.tables = options.tables;
     this.config = config;
+    if( options.container ) this.container = options.container;
     this.add_page();
     this.tocBuilder = new TocBuilder( this );
     this.rid = options.rid;
@@ -22,7 +24,7 @@ PageSpanner.prototype = {
     this.prevpage = this.curpage;
     if( this.curpage ) this.curpage.finalize();
     this.pagenum++;
-    this.curpage = new Page( this.pagenum, this.page_tpl_func, this.config );
+    this.curpage = new Page( this.pagenum, this.page_tpl_func, this.config, this.container );
     if( this.prevpage ) this.shift_floating_headers();
   },
   shift_floating_headers: function() {
@@ -183,6 +185,10 @@ PageSpanner.prototype = {
       if( type == 'else' ) {
         // because we reached here, we are currently showing stuff
         this.noshow = 1;
+        return {html:''};
+      }
+      if( type == 'newpage' ) {
+        this.add_page();
         return {html:''};
       }
     }
@@ -772,14 +778,14 @@ Page.prototype = {
   pagenum: 0,
   baseHeight: 0,
   config: 0,
-  initialize: function( pagenum, page_tpl_func, config ) {
+  initialize: function( pagenum, page_tpl_func, config, container ) {
     //var main = _getel('main');
     this.pagenum = pagenum;
     this.config = config;
     if( pagenum > 50 ) console.break();
     this.tpl_func = page_tpl_func;
     var div = _newdiv('page');
-    _append( document.body, div );
+    _append( container ? container : document.body, div );
     
     if( page_tpl_func ) {
       this.div = page_tpl_func( div, config, pagenum );
