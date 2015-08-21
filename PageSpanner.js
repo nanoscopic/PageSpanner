@@ -9,6 +9,7 @@ PageSpanner.prototype = {
   curpage: 0,
   config: 0,
   container: 0,
+  base: './',
   initialize: function( options, config ) {
     this.pagenum = 0;
     this.curpage = 0;
@@ -19,6 +20,7 @@ PageSpanner.prototype = {
     this.add_page();
     this.tocBuilder = new TocBuilder( this );
     this.rid = options.rid;
+    if( options.base ) this.base = options.base;
   },
   add_page: function() {
     this.prevpage = this.curpage;
@@ -308,6 +310,9 @@ PageSpanner.prototype = {
     }
   },*/
   addTr: function( tr, callback ) {
+    if( !this.curtbody ) {
+      this.newTb();
+    }
     _append( this.curtbody, tr );
     if( this.curpage.is_full() ) {
       if( tr.parentNode ) {
@@ -341,11 +346,11 @@ PageSpanner.prototype = {
     }
   },
   add_table: function( thash ) {
-    this.curtbody = this.add_empty_table();
+    //this.curtbody = this.add_empty_table();
     var tob = new TableSys( thash, this );
-    var tb1 = this.curtbody;
+    //var tb1 = this.curtbody;
     var table = tob.render( this );
-    return tb1.parentNode;
+    //return tb1.parentNode;
   },
   add_graph: function( xys, inf, tbname, insertid, throwok ) {
     var dataname = tbname;
@@ -468,7 +473,7 @@ PageSpanner.prototype = {
           more: morea
       }, ops );*/
       var img = _newel('img');
-      img.src = 'data/images/pie-'+this.rid+'-' + tbname + '.png';
+      img.src = this.base + 'data/images/pie-'+this.rid+'-' + tbname + '.png';
       img.style.width = '200px';
       img.style.height = '130px';
       _append( div, img );
@@ -500,7 +505,9 @@ PageSpanner.prototype = {
     return tb.tbody;
   },
   newTb: function() {
-    if( !this.curtbody.firstChild ) return 0;
+    if( this.curtbody && !this.curtbody.firstChild ) {
+      return;
+    }
     var bod = this.add_empty_table();
     this.curtbody = bod;
     return bod;
@@ -641,9 +648,11 @@ TableLevel.prototype = {
     this.throwok = throwok;
   },
   render: function() {
+    if( this.def.pre ) this.spanner.add_html( this.def.pre, 1 );
     if( this.def.header ) this.renderHeaders( this.def.header );
     if( this.def.detail ) this.renderDetail( this.def.detail );
     if( this.def.groups ) this.renderGroups( this.def.groups );
+    if( this.def.footer ) this.renderHeaders( this.def.footer );
   },
   renderDetail: function( headers ) {
     var dokill = 1;
@@ -730,7 +739,7 @@ TableLevel.prototype = {
           var maxShow = self.levelId - 1;
           for( var showLevel = 0; showLevel <= maxShow; showLevel++ ) {
             var above = self.sys.getLevel( showLevel );
-            above.shownHeaders = [];
+            //above.shownHeaders = [];
           }
         }
       }
@@ -760,7 +769,7 @@ TableLevel.prototype = {
       var sets = group.sets;
       for( var j in sets ) {
         var set = sets[j];
-        if( group.use_new_table && j > 0 ) {
+        if( group.use_new_table ) {
           this.sys.newTb();
         }
         var level = new TableLevel( set, this.spanner, this.sys, this.levelId + 1, this.throwok );
