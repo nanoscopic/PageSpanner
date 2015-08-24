@@ -346,7 +346,7 @@ PageSpanner.prototype = {
     }
   },
   add_table: function( thash ) {
-    //this.curtbody = this.add_empty_table();
+    this.curtbody = this.add_empty_table();
     var tob = new TableSys( thash, this );
     //var tb1 = this.curtbody;
     var table = tob.render( this );
@@ -504,8 +504,8 @@ PageSpanner.prototype = {
     else this.curpage.append( tb.table );
     return tb.tbody;
   },
-  newTb: function() {
-    if( this.curtbody && !this.curtbody.firstChild ) {
+  newTb: function( forcenew ) {
+    if( !forcenew && this.curtbody && !this.curtbody.firstChild ) {
       return;
     }
     var bod = this.add_empty_table();
@@ -626,8 +626,8 @@ TableSys.prototype = {
   getLevel: function( i ) {
     return this.levelStack[ i ];
   },
-  newTb: function() {
-    return this.spanner.newTb();
+  newTb: function( forcenew ) {
+    return this.spanner.newTb( forcenew || 0 );
   }
 };
 
@@ -739,7 +739,7 @@ TableLevel.prototype = {
           var maxShow = self.levelId - 1;
           for( var showLevel = 0; showLevel <= maxShow; showLevel++ ) {
             var above = self.sys.getLevel( showLevel );
-            //above.shownHeaders = [];
+            above.shownHeaders = [];
           }
         }
       }
@@ -770,7 +770,7 @@ TableLevel.prototype = {
       for( var j in sets ) {
         var set = sets[j];
         if( group.use_new_table ) {
-          this.sys.newTb();
+          this.sys.newTb( 1 );
         }
         var level = new TableLevel( set, this.spanner, this.sys, this.levelId + 1, this.throwok );
         this.sys.pushLevel( level );
